@@ -1,4 +1,4 @@
-"""Query Wikidata for Belgian politicians"""
+"""Query Wikidata for people born in Brussels who received an award"""
 
 import argparse
 from datetime import datetime as dt
@@ -15,14 +15,12 @@ def get_rows():
     sparql = SPARQLWrapper(endpoint,agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11")
 
     statement = """
-    SELECT DISTINCT ?person ?personLabel ?dateBirth ?dateDeath WHERE {
-        ?person wdt:P27 wd:Q31 .
-        ?person wdt:P106 wd:Q82955 .
-        ?person wdt:P569 ?dateBirth .
-        OPTIONAL {?person wdt:P570 ?dateDeath .}
-        SERVICE wikibase:label { bd:serviceParam wikibase:language "en" . }
+   SELECT DISTINCT ?person ?personLabel ?award ?awardLabel WHERE {
+        ?person wdt:P19 wd:Q239 .                                                         #Person born in Brussels
+        ?person wdt:P166 ?award                                                           #Person who won an award
+        SERVICE wikibase:label { bd:serviceParam wikibase:language "en, fr, nl, de" .}    #In any language
     }
-    ORDER BY ?personLabel
+    order by ?personLabel
     """
 
     sparql.setQuery(statement)
@@ -30,29 +28,21 @@ def get_rows():
     results = sparql.query().convert()
 
     rows = results['results']['bindings']
-    print(f"\n{len(rows)} Belgian politicians found\n")
+    print(f"\n{len(rows)} awarded people found\n")
     return rows
 
 def show(rows, name_filter=None, n=10):
-    """Display n politicians (default=10)"""
+    """Display n people (default=10)"""
     date_format = "%Y-%m-%dT%H:%M:%SZ"
     if name_filter:
         rows = [row for row in rows if name_filter in row['personLabel']['value'].lower()]
     print(f"Displaying the first {n}:\n")
     for row in rows[:n]:
         try:
-            birth_date = dt.strptime(row['dateBirth']['value'], date_format)
-            birth_year = birth_date.year
+            award_label = row["awardLabel"]["value"]
         except ValueError:
-            birth_year = "????"
-        try:
-            death_date = dt.strptime(row['dateDeath']['value'], date_format)
-            death_year = death_date.year
-        except ValueError: # unknown death date
-            death_year = "????"
-        except KeyError: # still alive
-            death_year = ""
-        print(f"{row['personLabel']['value']} ({birth_year}-{death_year})")
+            award_label = "????"
+        print(f"{row['personLabel']['value']} - {award_label}")
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -60,3 +50,6 @@ if __name__ == "__main__":
     my_filter = args.filter if args.filter else None
     number = args.number if args.number else 10
     show(my_rows, my_filter, number)
+
+
+
